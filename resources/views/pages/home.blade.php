@@ -46,10 +46,10 @@
                         <span class="hero-quick__label">Start a Business</span>
                         <p>Follow the establishment process from structure to registration.</p>
                     </a>
-                    <a class="hero-quick__item" href="{{ route('services') }}">
-                        <x-icon name="users" />
-                        <span class="hero-quick__label">Investor Services</span>
-                        <p>Onboarding, facilitation, project support and aftercare.</p>
+                    <a class="hero-quick__item" href="{{ route('licensing') }}">
+                        <x-icon name="file-text" />
+                        <span class="hero-quick__label">Licenses &amp; Permits</span>
+                        <p>Explore statutory licenses, check official pricing, and request permits.</p>
                     </a>
                 </div>
             </div>
@@ -111,8 +111,7 @@
                     <span class="eyebrow">Pipeline</span>
                     <h2>Investment Opportunities</h2>
                     <p class="lead mb-0">
-                        A selection of current projects. Investment figures are provisional and
-                        confirmed only at enquiry stage.
+                        A selection of strategic capital projects and investment initiatives across the Emirates.
                     </p>
                 </div>
                 <a class="btn btn-mia btn-outline-mia" href="{{ route('opportunities.index') }}">

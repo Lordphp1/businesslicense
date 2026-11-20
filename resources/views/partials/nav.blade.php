@@ -48,6 +48,7 @@
                 </div>
 
                 <a class="site-nav__link" href="{{ route('sectors.index') }}">Sectors</a>
+                <a class="site-nav__link {{ request()->routeIs('licensing') ? 'is-active' : '' }}" href="{{ route('licensing') }}">Licenses &amp; Permits</a>
 
                 <div class="dropdown">
                     <button class="site-nav__link dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">

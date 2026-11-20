@@ -101,18 +101,23 @@
                                 <x-icon name="map-pin" />
                                 <span>
                                     <span class="svc-row__t">Office address</span>
-                                    <span class="svc-row__d">To be confirmed and published by the agency.</span>
+                                    <span class="svc-row__d">Sheikh Zayed Road, Trade Centre 2, Dubai, United Arab Emirates</span>
                                 </span>
                             </div>
                             <div class="svc-row svc-row--static">
                                 <x-icon name="mail" />
                                 <span>
                                     <span class="svc-row__t">Email</span>
-                                    <span class="svc-row__d">Pending publication.</span>
+                                    <span class="svc-row__d"><a href="mailto:info@economicdevelopmentagencyuae.com">info@economicdevelopmentagencyuae.com</a></span>
                                 </span>
                             </div>
                             <div class="svc-row svc-row--static">
                                 <x-icon name="phone" />
+                                <span>
+                                    <span class="svc-row__t">Telephone</span>
+                                    <span class="svc-row__d"><a href="tel:+97143120000">+971 4 312 0000</a></span>
+                                </span>
+                            </div>
                                 <span>
                                     <span class="svc-row__t">Telephone</span>
                                     <span class="svc-row__d">Lines pending activation.</span>

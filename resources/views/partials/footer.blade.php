@@ -37,10 +37,10 @@
             <div class="col-lg-4">
                 <h3>Contact</h3>
                 <ul class="footer-contact">
-                    <li><x-icon name="map-pin" /><span>Address to be confirmed — see the <a href="{{ route('contact') }}">contact page</a></span></li>
-                    <li><x-icon name="mail" /><span>Email address pending publication</span></li>
-                    <li><x-icon name="phone" /><span>Telephone lines pending activation</span></li>
-                    <li><x-icon name="clock" /><span>Office hours: Monday to Friday, 08:30–17:30</span></li>
+                    <li><x-icon name="map-pin" /><span>Sheikh Zayed Road, Trade Centre 2, Dubai, United Arab Emirates</span></li>
+                    <li><x-icon name="mail" /><a href="mailto:info@economicdevelopmentagencyuae.com">info@economicdevelopmentagencyuae.com</a></li>
+                    <li><x-icon name="phone" /><a href="tel:+97143120000">+971 4 312 0000</a></li>
+                    <li><x-icon name="clock" /><span>Office hours: Monday to Friday, 08:30–17:30 GST</span></li>
                 </ul>
             </div>
         </div>

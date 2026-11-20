@@ -51,7 +51,7 @@
             <div class="section-head">
                 <span class="eyebrow">Direction</span>
                 <h2>Mission, Vision &amp; Mandate</h2>
-                <p class="lead mb-0">Provisional statements pending ratification by the agency's board.</p>
+                <p class="lead mb-0">Driving economic diversification, foreign direct investment, and enterprise growth across the United Arab Emirates.</p>
             </div>
             <div class="mvi-grid">
                 <div class="mvi-item">
