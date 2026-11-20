@@ -45,7 +45,7 @@
                     <x-icon name="banknote" /> Permits &amp; pricing
                 </a>
                 <span class="admin-nav__pending">
-                    <x-icon name="file-text" /> <span>Sectors, opportunities and news</span>
+                    <x-icon name="file-text" /> Sectors, opportunities and news
                     <span class="admin-nav__soon">Next milestone</span>
                 </span>
             </nav>

@@ -435,7 +435,6 @@ figure { margin: 0; }
   display: flex;
   align-items: center;
   gap: 0.25rem;
-  margin-inline: auto;
 }
 .site-nav__link {
   font-family: var(--font-heading);
@@ -493,6 +492,7 @@ figure { margin: 0; }
 .nav-burger { display: none; }
 
 @media (max-width: 1199.98px) {
+  .site-nav__inner { justify-content: space-between; }
   .site-nav__links { display: none; }
   .nav-burger { display: inline-flex; }
 }
@@ -501,6 +501,10 @@ figure { margin: 0; }
   .site-nav__actions .nav-login { display: none; }
   .brand__mark { width: 36px; height: 36px; }
   .brand__tag { display: none; }
+  .site-nav__actions { gap: 0.5rem; }
+  .site-nav__actions .iconbtn { width: 36px; height: 36px; }
+  .site-nav__actions .iconbtn .icon { width: 16px; height: 16px; }
+  .nav-login { padding: 0.45rem 0.7rem; font-size: var(--fs-300); }
 }
 
 /* Mobile drawer */
