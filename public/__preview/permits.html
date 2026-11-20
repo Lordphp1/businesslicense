@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Permits &amp; pricing — Agency Console</title>
+    <meta name="description" content="Private staff console for Meridian Investment Agency: enquiry queue, assignment and internal notes.">
+    <meta name="robots" content="noindex, nofollow">
+
+    <link rel="icon" type="image/svg+xml" href="http://127.0.0.1:8000/assets/logos/favicon.svg">
+    <link rel="stylesheet" href="http://127.0.0.1:8000/assets/vendor/bootstrap.min.css">
+    <link rel="stylesheet" href="http://127.0.0.1:8000/assets/css/app.css">
+<script id="browser-logger-active">
+(function() {
+    const ENDPOINT = 'http://127.0.0.1:8000/_boost/browser-logs';
+    const logQueue = [];
+    let flushTimeout = null;
+    const captureTypes = ["error","warning","info","log","debug","table"];
+
+    console.log('🔍 Browser logger active (MCP server detected). Posting to: ' + ENDPOINT);
+
+    // Store original console methods
+    const originalConsole = {
+        log: console.log,
+        debug: console.debug,
+        info: console.info,
+        error: console.error,
+        warn: console.warn,
+        table: console.table
+    };
+
+    // Walk own enumerable keys so JSON.stringify cannot auto-invoke a proxy fake toJSON (e.g. Livewire's `$wire`) and fire a real request.
+    function toSafeValue(value, seen) {
+        if (value === null || typeof value !== 'object') {
+            return value;
+        }
+        if (value instanceof Error) {
+            return { name: value.name, message: value.message, stack: value.stack };
+        }
+        // Date has no own enumerable keys, so the walk below would collapse it to {}.
+        if (value instanceof Date) {
+            return value.toISOString();
+        }
+        if (seen.has(value)) {
+            return '[Circular]';
+        }
+        seen.add(value);
+        if (Array.isArray(value)) {
+            return value.map((item) => toSafeValue(item, seen));
+        }
+        const plain = {};
+        for (const key of Object.keys(value)) {
+            if (key === 'toJSON') continue;
+            try {
+                plain[key] = toSafeValue(value[key], seen);
+            } catch (e) {
+                plain[key] = '[Unreadable]';
+            }
+        }
+        return plain;
+    }
+
+    // Helper to safely stringify values
+    function safeStringify(obj) {
+        return JSON.stringify(toSafeValue(obj, new WeakSet()));
+    }
+
+    // Normalize log type for consistency (e.g., 'warn' to 'warning')
+    function normalizeType(type) {
+        return type === 'warn' ? 'warning' : type;
+    }
+
+    // Determine if a log type should be captured based on configured levels
+    function shouldCapture(type) {
+        return captureTypes.includes(normalizeType(type));
+    }
+
+    // Batch and send logs
+    function flushLogs() {
+        if (logQueue.length === 0) return;
+
+        const batch = logQueue.splice(0, logQueue.length);
+
+        fetch(ENDPOINT, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ logs: batch })
+        }).catch(err => {
+            // Silently fail to avoid infinite loops
+            originalConsole.error('Failed to send logs:', err);
+        });
+    }
+
+    // Debounced flush (100ms)
+    function scheduleFlush() {
+        if (flushTimeout) clearTimeout(flushTimeout);
+        flushTimeout = setTimeout(flushLogs, 100);
+    }
+
+    // Intercept console methods
+    ['log', 'debug', 'info', 'error', 'warn', 'table'].forEach(method => {
+        console[method] = function(...args) {
+            // Call original method
+            originalConsole[method].apply(console, args);
+
+            // Capture log data
+            try {
+                if (!shouldCapture(method)) {
+                    return;
+                }
+
+                logQueue.push({
+                    type: method,
+                    timestamp: new Date().toISOString(),
+                    data: args.map(arg => {
+                        try {
+                            return typeof arg === 'object' ? JSON.parse(safeStringify(arg)) : arg;
+                        } catch (e) {
+                            return String(arg);
+                        }
+                    }),
+                    url: window.location.href,
+                    userAgent: navigator.userAgent
+                });
+
+                scheduleFlush();
+            } catch (e) {
+                // Fail silently
+            }
+        };
+    });
+
+    // Global error handlers for uncaught errors
+    const originalOnError = window.onerror;
+    window.onerror = function boostErrorHandler(errorMsg, url, lineNumber, colNumber, error) {
+        try {
+            if (shouldCapture('error')) {
+                logQueue.push({
+                    type: 'uncaught_error',
+                    timestamp: new Date().toISOString(),
+                    data: [{
+                        message: errorMsg,
+                        filename: url,
+                        lineno: lineNumber,
+                        colno: colNumber,
+                        error: error ? {
+                            name: error.name,
+                            message: error.message,
+                            stack: error.stack
+                        } : null
+                    }],
+                    url: window.location.href,
+                    userAgent: navigator.userAgent
+                });
+
+                scheduleFlush();
+            }
+
+        } catch (e) {
+            // Fail silently
+        }
+
+        // Call original handler if it exists
+        if (originalOnError && typeof originalOnError === 'function') {
+            return originalOnError(errorMsg, url, lineNumber, colNumber, error);
+        }
+
+        // Let the error continue to propagate
+        return false;
+    }
+    window.addEventListener('error', (event) => {
+        try {
+            if (!shouldCapture('error')) {
+                return false;
+            }
+
+            logQueue.push({
+                type: 'window_error',
+                timestamp: new Date().toISOString(),
+                data: [{
+                    message: event.message,
+                    filename: event.filename,
+                    lineno: event.lineno,
+                    colno: event.colno,
+                    error: event.error ? {
+                        name: event.error.name,
+                        message: event.error.message,
+                        stack: event.error.stack
+                    } : null
+                }],
+                url: window.location.href,
+                userAgent: navigator.userAgent
+            });
+
+            scheduleFlush();
+        } catch (e) {
+            // Fail silently
+        }
+
+        // Let the error continue to propagate
+        return false;
+    });
+    window.addEventListener('unhandledrejection', (event) => {
+        try {
+            if (!shouldCapture('error')) {
+                return false;
+            }
+
+            logQueue.push({
+                type: 'error',
+                timestamp: new Date().toISOString(),
+                data: [{
+                    message: 'Unhandled Promise Rejection',
+                    reason: toSafeValue(event.reason, new WeakSet())
+                }],
+                url: window.location.href,
+                userAgent: navigator.userAgent
+            });
+
+            scheduleFlush();
+        } catch (e) {
+            // Fail silently
+        }
+
+        // Let the rejection continue to propagate
+        return false;
+    });
+
+    // Flush on page unload
+    window.addEventListener('beforeunload', () => {
+        if (logQueue.length > 0) {
+            navigator.sendBeacon(ENDPOINT, JSON.stringify({ logs: logQueue }));
+        }
+    });
+})();
+</script>
+</head>
+<body class="admin-body">
+    <a class="visually-hidden-focusable" href="#admin-main">Skip to main content</a>
+
+    
+    <div class="admin-shell">
+        <aside class="admin-side">
+            <div class="admin-side__brand">
+                <a href="http://127.0.0.1:8000/admin" class="brand brand--light" aria-label="Meridian Investment Agency — agency console home">
+    
+    <svg class="brand__mark" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">
+        <rect width="44" height="44" rx="6" fill="#102A43"/>
+        <circle cx="22" cy="22" r="14.5" stroke="#C8A45D" stroke-width="1.5"/>
+        <ellipse cx="22" cy="22" rx="6.5" ry="14.5" stroke="#C8A45D" stroke-width="1.2" opacity="0.85"/>
+        <path d="M22 7.5V36.5" stroke="#C8A45D" stroke-width="1.2" opacity="0.85"/>
+        <path d="M22 12L27 22L22 32L17 22L22 12Z" fill="#C8A45D"/>
+        <circle cx="22" cy="22" r="2" fill="#0B1F33"/>
+    </svg>
+    <span>
+        <span class="brand__name">Meridian Investment Agency</span>
+        <span class="brand__tag">Agency Console</span>
+    </span>
+</a>
+            </div>
+
+            <nav class="admin-nav" aria-label="Back office">
+                <span class="admin-nav__label">Pipeline</span>
+                <a class="admin-nav__link "
+                    href="http://127.0.0.1:8000/admin" >
+                    <!-- @license lucide-static v0.469.0 - ISC -->
+<svg class="icon" aria-hidden="true" focusable="false"
+  class="lucide lucide-chart-pie"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M21 12c.552 0 1.005-.449.95-.998a10 10 0 0 0-8.953-8.951c-.55-.055-.998.398-.998.95v8a1 1 0 0 0 1 1z" />
+  <path d="M21.21 15.89A10 10 0 1 1 8 2.83" />
+</svg>
+
+ Overview
+                </a>
+                <a class="admin-nav__link "
+                    href="http://127.0.0.1:8000/admin/enquiries" >
+                    <svg class="icon" aria-hidden="true" focusable="false"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z" />
+</svg>
+
+ Enquiries
+                                            <span class="admin-nav__count">1</span>
+                                    </a>
+
+                <span class="admin-nav__label">Content</span>
+                <a class="admin-nav__link is-active"
+                    href="http://127.0.0.1:8000/admin/permits"  aria-current="page" >
+                    <svg class="icon" aria-hidden="true" focusable="false"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <rect width="20" height="12" x="2" y="6" rx="2" />
+  <circle cx="12" cy="12" r="2" />
+  <path d="M6 12h.01M18 12h.01" />
+</svg>
+
+ Permits &amp; pricing
+                </a>
+                <span class="admin-nav__pending">
+                    <svg class="icon" aria-hidden="true" focusable="false"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z" />
+  <path d="M14 2v5a1 1 0 0 0 1 1h5" />
+  <path d="M10 9H8" />
+  <path d="M16 13H8" />
+  <path d="M16 17H8" />
+</svg>
+
+ Sectors, opportunities and news
+                    <span class="admin-nav__soon">Next milestone</span>
+                </span>
+            </nav>
+
+            <div class="admin-side__foot">
+                <div class="admin-user">
+                    <span class="admin-user__avatar" aria-hidden="true">Q</span>
+                    <span>
+                        <span class="admin-user__name">QA Reviewer</span>
+                        <span class="admin-user__email">qa.permits@meridian.test</span>
+                    </span>
+                </div>
+                <a class="admin-side__link" href="http://127.0.0.1:8000">
+                    <svg class="icon" aria-hidden="true" focusable="false"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M15 3h6v6" />
+  <path d="M10 14 21 3" />
+  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+</svg>
+
+ View public site
+                </a>
+                <form method="POST" action="http://127.0.0.1:8000/logout">
+                    <input type="hidden" name="_token" value="rubBXuYuf32xvXIwbuVfbM8r26qHRMyek8yvg0A2" autocomplete="off">                    <button type="submit" class="admin-side__link admin-side__link--button">
+                        <!-- @license lucide-static v0.469.0 - ISC -->
+<svg class="icon" aria-hidden="true" focusable="false"
+  class="lucide lucide-log-in"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+  <polyline points="10 17 15 12 10 7" />
+  <line x1="15" x2="3" y1="12" y2="12" />
+</svg>
+
+ Sign out
+                    </button>
+                </form>
+            </div>
+        </aside>
+
+        <div class="admin-main">
+            <header class="admin-top">
+                <nav aria-label="Breadcrumb" class="admin-crumbs">
+                    <a href="http://127.0.0.1:8000/admin">Console</a>
+                    <svg class="icon" aria-hidden="true" focusable="false"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="m9 18 6-6-6-6" />
+</svg>
+
+                    <span aria-current="page">Permits &amp; pricing</span>
+                </nav>
+                <span class="admin-top__site">Private area — staff only</span>
+            </header>
+
+            <main id="admin-main" class="admin-content">
+                
+                    <div class="admin-page-head">
+        <div>
+            <span class="eyebrow">Catalogue</span>
+            <h1>Permits &amp; pricing</h1>
+            <p class="lead mb-0">
+                5 permits published.
+                Changes appear on the public licensing page immediately.
+            </p>
+        </div>
+        <a class="btn btn-mia btn-gold-mia" href="http://127.0.0.1:8000/admin/permits/create">
+            Add permit <svg class="icon" aria-hidden="true" focusable="false"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z" />
+  <path d="M14 2v5a1 1 0 0 0 1 1h5" />
+  <path d="M10 9H8" />
+  <path d="M16 13H8" />
+  <path d="M16 17H8" />
+</svg>
+
+        </a>
+    </div>
+
+    <div class="admin-status-chips">
+                            <a class="admin-chip is-active"
+                href="http://127.0.0.1:8000/admin/permits"
+                 aria-current="true" >
+                All
+                <span>5</span>
+            </a>
+                    <a class="admin-chip "
+                href="http://127.0.0.1:8000/admin/permits?status=active"
+                >
+                Published
+                <span>5</span>
+            </a>
+                    <a class="admin-chip "
+                href="http://127.0.0.1:8000/admin/permits?status=inactive"
+                >
+                Hidden
+                <span>0</span>
+            </a>
+            </div>
+
+    <form class="filter-bar filter-bar--panel" method="GET" action="http://127.0.0.1:8000/admin/permits" aria-label="Filter permits">
+                <div class="filter-bar__field filter-bar__field--grow">
+            <label for="q">Search</label>
+            <input type="search" id="q" name="q" value=""
+                placeholder="Permit name, authority or slug">
+        </div>
+        <div class="filter-bar__actions">
+            <button type="submit" class="btn btn-mia btn-primary-mia">
+                Apply <svg class="icon" aria-hidden="true" focusable="false"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="m21 21-4.34-4.34" />
+  <circle cx="11" cy="11" r="8" />
+</svg>
+
+            </button>
+                    </div>
+    </form>
+
+    <section class="dash-block">
+                    <div class="table-responsive">
+                <table class="dash-table dash-table--permits">
+                    <thead>
+                        <tr>
+                            <th scope="col">Permit</th>
+                            <th scope="col">Authority</th>
+                            <th scope="col">Fee</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Order</th>
+                            <th scope="col"><span class="visually-hidden">Edit</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                                                    <tr>
+                                <td>
+                                    <a class="dash-table__title" href="http://127.0.0.1:8000/admin/permits/1/edit">
+                                        General Business License
+                                    </a>
+                                    <span class="admin-sub">general-business-license</span>
+                                </td>
+                                <td>Local licensing authority</td>
+                                <td class="admin-nowrap">
+                                                                            <span class="admin-sub">On assessment</span>
+                                                                    </td>
+                                <td>
+                                    <span class="status-badge status-badge--active">
+                                        Published
+                                    </span>
+                                </td>
+                                <td>1</td>
+                                <td class="admin-nowrap">
+                                    <a class="textlink" href="http://127.0.0.1:8000/admin/permits/1/edit">
+                                        Edit <svg class="icon" aria-hidden="true" focusable="false"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M5 12h14" />
+  <path d="m12 5 7 7-7 7" />
+</svg>
+
+                                    </a>
+                                </td>
+                            </tr>
+                                                    <tr>
+                                <td>
+                                    <a class="dash-table__title" href="http://127.0.0.1:8000/admin/permits/2/edit">
+                                        Employer Identification Number (EIN)
+                                    </a>
+                                    <span class="admin-sub">employer-identification-number</span>
+                                </td>
+                                <td>Internal Revenue Service</td>
+                                <td class="admin-nowrap">
+                                                                            <span class="admin-sub">On assessment</span>
+                                                                    </td>
+                                <td>
+                                    <span class="status-badge status-badge--active">
+                                        Published
+                                    </span>
+                                </td>
+                                <td>2</td>
+                                <td class="admin-nowrap">
+                                    <a class="textlink" href="http://127.0.0.1:8000/admin/permits/2/edit">
+                                        Edit <svg class="icon" aria-hidden="true" focusable="false"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M5 12h14" />
+  <path d="m12 5 7 7-7 7" />
+</svg>
+
+                                    </a>
+                                </td>
+                            </tr>
+                                                    <tr>
+                                <td>
+                                    <a class="dash-table__title" href="http://127.0.0.1:8000/admin/permits/3/edit">
+                                        Doing Business As (DBA)
+                                    </a>
+                                    <span class="admin-sub">doing-business-as</span>
+                                </td>
+                                <td>State or county registration office</td>
+                                <td class="admin-nowrap">
+                                                                            <span class="admin-sub">On assessment</span>
+                                                                    </td>
+                                <td>
+                                    <span class="status-badge status-badge--active">
+                                        Published
+                                    </span>
+                                </td>
+                                <td>3</td>
+                                <td class="admin-nowrap">
+                                    <a class="textlink" href="http://127.0.0.1:8000/admin/permits/3/edit">
+                                        Edit <svg class="icon" aria-hidden="true" focusable="false"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M5 12h14" />
+  <path d="m12 5 7 7-7 7" />
+</svg>
+
+                                    </a>
+                                </td>
+                            </tr>
+                                                    <tr>
+                                <td>
+                                    <a class="dash-table__title" href="http://127.0.0.1:8000/admin/permits/4/edit">
+                                        Federal Permits
+                                    </a>
+                                    <span class="admin-sub">federal-permits</span>
+                                </td>
+                                <td>Relevant federal agency</td>
+                                <td class="admin-nowrap">
+                                                                            <span class="admin-sub">On assessment</span>
+                                                                    </td>
+                                <td>
+                                    <span class="status-badge status-badge--active">
+                                        Published
+                                    </span>
+                                </td>
+                                <td>4</td>
+                                <td class="admin-nowrap">
+                                    <a class="textlink" href="http://127.0.0.1:8000/admin/permits/4/edit">
+                                        Edit <svg class="icon" aria-hidden="true" focusable="false"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M5 12h14" />
+  <path d="m12 5 7 7-7 7" />
+</svg>
+
+                                    </a>
+                                </td>
+                            </tr>
+                                                    <tr>
+                                <td>
+                                    <a class="dash-table__title" href="http://127.0.0.1:8000/admin/permits/5/edit">
+                                        Sales Tax Permit
+                                    </a>
+                                    <span class="admin-sub">sales-tax-permit</span>
+                                </td>
+                                <td>State tax authority</td>
+                                <td class="admin-nowrap">
+                                                                            <span class="admin-sub">On assessment</span>
+                                                                    </td>
+                                <td>
+                                    <span class="status-badge status-badge--active">
+                                        Published
+                                    </span>
+                                </td>
+                                <td>5</td>
+                                <td class="admin-nowrap">
+                                    <a class="textlink" href="http://127.0.0.1:8000/admin/permits/5/edit">
+                                        Edit <svg class="icon" aria-hidden="true" focusable="false"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M5 12h14" />
+  <path d="m12 5 7 7-7 7" />
+</svg>
+
+                                    </a>
+                                </td>
+                            </tr>
+                                            </tbody>
+                </table>
+            </div>
+
+            <div class="admin-pagination">
+                
+            </div>
+            </section>
+            </main>
+        </div>
+    </div>
+
+    <script src="http://127.0.0.1:8000/assets/vendor/bootstrap.bundle.min.js" defer></script>
+</body>
+</html>

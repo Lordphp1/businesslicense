@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Frame preview</title>
+    <style>
+        html, body { margin: 0; padding: 0; background: #fff; }
+        iframe { display: block; border: 0; height: 3400px; }
+    </style>
+</head>
+<body>
+    <script>
+        const params = new URLSearchParams(location.search);
+        const frame = document.createElement('iframe');
+        frame.src = params.get('src') || '/business-licensing';
+        frame.width = params.get('w') || '390';
+        frame.title = 'Preview';
+        frame.addEventListener('load', () => {
+            const target = params.get('to');
+            if (!target) { return; }
+            const el = frame.contentDocument.querySelector(target);
+            if (el) {
+                frame.contentDocument.documentElement.style.scrollBehavior = 'auto';
+                frame.contentWindow.scrollTo(0, el.getBoundingClientRect().top + frame.contentWindow.scrollY);
+            }
+        });
+        document.body.appendChild(frame);
+    </script>
+</body>
+</html>

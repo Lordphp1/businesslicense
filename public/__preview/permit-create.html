@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Add permit — Agency Console</title>
+    <meta name="description" content="Private staff console for Meridian Investment Agency: enquiry queue, assignment and internal notes.">
+    <meta name="robots" content="noindex, nofollow">
+
+    <link rel="icon" type="image/svg+xml" href="http://127.0.0.1:8000/assets/logos/favicon.svg">
+    <link rel="stylesheet" href="http://127.0.0.1:8000/assets/vendor/bootstrap.min.css">
+    <link rel="stylesheet" href="http://127.0.0.1:8000/assets/css/app.css">
+<script id="browser-logger-active">
+(function() {
+    const ENDPOINT = 'http://127.0.0.1:8000/_boost/browser-logs';
+    const logQueue = [];
+    let flushTimeout = null;
+    const captureTypes = ["error","warning","info","log","debug","table"];
+
+    console.log('🔍 Browser logger active (MCP server detected). Posting to: ' + ENDPOINT);
+
+    // Store original console methods
+    const originalConsole = {
+        log: console.log,
+        debug: console.debug,
+        info: console.info,
+        error: console.error,
+        warn: console.warn,
+        table: console.table
+    };
+
+    // Walk own enumerable keys so JSON.stringify cannot auto-invoke a proxy fake toJSON (e.g. Livewire's `$wire`) and fire a real request.
+    function toSafeValue(value, seen) {
+        if (value === null || typeof value !== 'object') {
+            return value;
+        }
+        if (value instanceof Error) {
+            return { name: value.name, message: value.message, stack: value.stack };
+        }
+        // Date has no own enumerable keys, so the walk below would collapse it to {}.
+        if (value instanceof Date) {
+            return value.toISOString();
+        }
+        if (seen.has(value)) {
+            return '[Circular]';
+        }
+        seen.add(value);
+        if (Array.isArray(value)) {
+            return value.map((item) => toSafeValue(item, seen));
+        }
+        const plain = {};
+        for (const key of Object.keys(value)) {
+            if (key === 'toJSON') continue;
+            try {
+                plain[key] = toSafeValue(value[key], seen);
+            } catch (e) {
+                plain[key] = '[Unreadable]';
+            }
+        }
+        return plain;
+    }
+
+    // Helper to safely stringify values
+    function safeStringify(obj) {
+        return JSON.stringify(toSafeValue(obj, new WeakSet()));
+    }
+
+    // Normalize log type for consistency (e.g., 'warn' to 'warning')
+    function normalizeType(type) {
+        return type === 'warn' ? 'warning' : type;
+    }
+
+    // Determine if a log type should be captured based on configured levels
+    function shouldCapture(type) {
+        return captureTypes.includes(normalizeType(type));
+    }
+
+    // Batch and send logs
+    function flushLogs() {
+        if (logQueue.length === 0) return;
+
+        const batch = logQueue.splice(0, logQueue.length);
+
+        fetch(ENDPOINT, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ logs: batch })
+        }).catch(err => {
+            // Silently fail to avoid infinite loops
+            originalConsole.error('Failed to send logs:', err);
+        });
+    }
+
+    // Debounced flush (100ms)
+    function scheduleFlush() {
+        if (flushTimeout) clearTimeout(flushTimeout);
+        flushTimeout = setTimeout(flushLogs, 100);
+    }
+
+    // Intercept console methods
+    ['log', 'debug', 'info', 'error', 'warn', 'table'].forEach(method => {
+        console[method] = function(...args) {
+            // Call original method
+            originalConsole[method].apply(console, args);
+
+            // Capture log data
+            try {
+                if (!shouldCapture(method)) {
+                    return;
+                }
+
+                logQueue.push({
+                    type: method,
+                    timestamp: new Date().toISOString(),
+                    data: args.map(arg => {
+                        try {
+                            return typeof arg === 'object' ? JSON.parse(safeStringify(arg)) : arg;
+                        } catch (e) {
+                            return String(arg);
+                        }
+                    }),
+                    url: window.location.href,
+                    userAgent: navigator.userAgent
+                });
+
+                scheduleFlush();
+            } catch (e) {
+                // Fail silently
+            }
+        };
+    });
+
+    // Global error handlers for uncaught errors
+    const originalOnError = window.onerror;
+    window.onerror = function boostErrorHandler(errorMsg, url, lineNumber, colNumber, error) {
+        try {
+            if (shouldCapture('error')) {
+                logQueue.push({
+                    type: 'uncaught_error',
+                    timestamp: new Date().toISOString(),
+                    data: [{
+                        message: errorMsg,
+                        filename: url,
+                        lineno: lineNumber,
+                        colno: colNumber,
+                        error: error ? {
+                            name: error.name,
+                            message: error.message,
+                            stack: error.stack
+                        } : null
+                    }],
+                    url: window.location.href,
+                    userAgent: navigator.userAgent
+                });
+
+                scheduleFlush();
+            }
+
+        } catch (e) {
+            // Fail silently
+        }
+
+        // Call original handler if it exists
+        if (originalOnError && typeof originalOnError === 'function') {
+            return originalOnError(errorMsg, url, lineNumber, colNumber, error);
+        }
+
+        // Let the error continue to propagate
+        return false;
+    }
+    window.addEventListener('error', (event) => {
+        try {
+            if (!shouldCapture('error')) {
+                return false;
+            }
+
+            logQueue.push({
+                type: 'window_error',
+                timestamp: new Date().toISOString(),
+                data: [{
+                    message: event.message,
+                    filename: event.filename,
+                    lineno: event.lineno,
+                    colno: event.colno,
+                    error: event.error ? {
+                        name: event.error.name,
+                        message: event.error.message,
+                        stack: event.error.stack
+                    } : null
+                }],
+                url: window.location.href,
+                userAgent: navigator.userAgent
+            });
+
+            scheduleFlush();
+        } catch (e) {
+            // Fail silently
+        }
+
+        // Let the error continue to propagate
+        return false;
+    });
+    window.addEventListener('unhandledrejection', (event) => {
+        try {
+            if (!shouldCapture('error')) {
+                return false;
+            }
+
+            logQueue.push({
+                type: 'error',
+                timestamp: new Date().toISOString(),
+                data: [{
+                    message: 'Unhandled Promise Rejection',
+                    reason: toSafeValue(event.reason, new WeakSet())
+                }],
+                url: window.location.href,
+                userAgent: navigator.userAgent
+            });
+
+            scheduleFlush();
+        } catch (e) {
+            // Fail silently
+        }
+
+        // Let the rejection continue to propagate
+        return false;
+    });
+
+    // Flush on page unload
+    window.addEventListener('beforeunload', () => {
+        if (logQueue.length > 0) {
+            navigator.sendBeacon(ENDPOINT, JSON.stringify({ logs: logQueue }));
+        }
+    });
+})();
+</script>
+</head>
+<body class="admin-body">
+    <a class="visually-hidden-focusable" href="#admin-main">Skip to main content</a>
+
+    
+    <div class="admin-shell">
+        <aside class="admin-side">
+            <div class="admin-side__brand">
+                <a href="http://127.0.0.1:8000/admin" class="brand brand--light" aria-label="Meridian Investment Agency — agency console home">
+    
+    <svg class="brand__mark" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">
+        <rect width="44" height="44" rx="6" fill="#102A43"/>
+        <circle cx="22" cy="22" r="14.5" stroke="#C8A45D" stroke-width="1.5"/>
+        <ellipse cx="22" cy="22" rx="6.5" ry="14.5" stroke="#C8A45D" stroke-width="1.2" opacity="0.85"/>
+        <path d="M22 7.5V36.5" stroke="#C8A45D" stroke-width="1.2" opacity="0.85"/>
+        <path d="M22 12L27 22L22 32L17 22L22 12Z" fill="#C8A45D"/>
+        <circle cx="22" cy="22" r="2" fill="#0B1F33"/>
+    </svg>
+    <span>
+        <span class="brand__name">Meridian Investment Agency</span>
+        <span class="brand__tag">Agency Console</span>
+    </span>
+</a>
+            </div>
+
+            <nav class="admin-nav" aria-label="Back office">
+                <span class="admin-nav__label">Pipeline</span>
+                <a class="admin-nav__link "
+                    href="http://127.0.0.1:8000/admin" >
+                    <!-- @license lucide-static v0.469.0 - ISC -->
+<svg class="icon" aria-hidden="true" focusable="false"
+  class="lucide lucide-chart-pie"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M21 12c.552 0 1.005-.449.95-.998a10 10 0 0 0-8.953-8.951c-.55-.055-.998.398-.998.95v8a1 1 0 0 0 1 1z" />
+  <path d="M21.21 15.89A10 10 0 1 1 8 2.83" />
+</svg>
+
+ Overview
+                </a>
+                <a class="admin-nav__link "
+                    href="http://127.0.0.1:8000/admin/enquiries" >
+                    <svg class="icon" aria-hidden="true" focusable="false"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z" />
+</svg>
+
+ Enquiries
+                                            <span class="admin-nav__count">1</span>
+                                    </a>
+
+                <span class="admin-nav__label">Content</span>
+                <a class="admin-nav__link is-active"
+                    href="http://127.0.0.1:8000/admin/permits"  aria-current="page" >
+                    <svg class="icon" aria-hidden="true" focusable="false"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <rect width="20" height="12" x="2" y="6" rx="2" />
+  <circle cx="12" cy="12" r="2" />
+  <path d="M6 12h.01M18 12h.01" />
+</svg>
+
+ Permits &amp; pricing
+                </a>
+                <span class="admin-nav__pending">
+                    <svg class="icon" aria-hidden="true" focusable="false"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z" />
+  <path d="M14 2v5a1 1 0 0 0 1 1h5" />
+  <path d="M10 9H8" />
+  <path d="M16 13H8" />
+  <path d="M16 17H8" />
+</svg>
+
+ <span>Sectors, opportunities and news</span>
+                    <span class="admin-nav__soon">Next milestone</span>
+                </span>
+            </nav>
+
+            <div class="admin-side__foot">
+                <div class="admin-user">
+                    <span class="admin-user__avatar" aria-hidden="true">Q</span>
+                    <span>
+                        <span class="admin-user__name">QA Reviewer</span>
+                        <span class="admin-user__email">qa.permits@meridian.test</span>
+                    </span>
+                </div>
+                <a class="admin-side__link" href="http://127.0.0.1:8000">
+                    <svg class="icon" aria-hidden="true" focusable="false"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M15 3h6v6" />
+  <path d="M10 14 21 3" />
+  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+</svg>
+
+ View public site
+                </a>
+                <form method="POST" action="http://127.0.0.1:8000/logout">
+                    <input type="hidden" name="_token" value="rubBXuYuf32xvXIwbuVfbM8r26qHRMyek8yvg0A2" autocomplete="off">                    <button type="submit" class="admin-side__link admin-side__link--button">
+                        <!-- @license lucide-static v0.469.0 - ISC -->
+<svg class="icon" aria-hidden="true" focusable="false"
+  class="lucide lucide-log-in"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+  <polyline points="10 17 15 12 10 7" />
+  <line x1="15" x2="3" y1="12" y2="12" />
+</svg>
+
+ Sign out
+                    </button>
+                </form>
+            </div>
+        </aside>
+
+        <div class="admin-main">
+            <header class="admin-top">
+                <nav aria-label="Breadcrumb" class="admin-crumbs">
+                    <a href="http://127.0.0.1:8000/admin">Console</a>
+                    <svg class="icon" aria-hidden="true" focusable="false"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="m9 18 6-6-6-6" />
+</svg>
+
+                    <span aria-current="page">Permits / Add</span>
+                </nav>
+                <span class="admin-top__site">Private area — staff only</span>
+            </header>
+
+            <main id="admin-main" class="admin-content">
+                
+                    <div class="admin-page-head">
+        <div>
+            <a class="textlink admin-back" href="http://127.0.0.1:8000/admin/permits">
+                <svg class="icon icon--back" aria-hidden="true" focusable="false"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M5 12h14" />
+  <path d="m12 5 7 7-7 7" />
+</svg>
+
+ Back to permits
+            </a>
+            <h1 class="admin-title">Add a permit</h1>
+            <p class="admin-sub-line">Publish a permit and its agency fee on the public licensing page.</p>
+        </div>
+    </div>
+
+    <form method="POST" action="http://127.0.0.1:8000/admin/permits">
+        <input type="hidden" name="_token" value="rubBXuYuf32xvXIwbuVfbM8r26qHRMyek8yvg0A2" autocomplete="off">        <div class="admin-detail">
+    <div class="admin-detail__main">
+        <section class="dash-block">
+            <div class="dash-block__head">
+                <h2>Permit details</h2>
+                <span class="dash-block__meta">Shown on the public licensing page</span>
+            </div>
+
+            <div class="dash-form">
+                <div class="auth-field">
+                    <label for="name" class="form-label-mia">Name <span class="req">*</span></label>
+                    <input type="text" id="name" name="name" maxlength="120" required
+                        class="form-control-mia "
+                        value="">
+                                    </div>
+
+                <div class="auth-field">
+                    <label for="slug" class="form-label-mia">URL slug <span class="opt">Optional</span></label>
+                    <input type="text" id="slug" name="slug" maxlength="140"
+                        class="form-control-mia "
+                        value="" placeholder="generated-from-the-name">
+                    <p class="field-hint">Leave blank to generate one from the name.</p>
+                                    </div>
+
+                <div class="auth-field">
+                    <label for="authority" class="form-label-mia">Issuing authority <span class="opt">Optional</span></label>
+                    <input type="text" id="authority" name="authority" maxlength="150"
+                        class="form-control-mia "
+                        value=""
+                        placeholder="e.g. State tax authority">
+                    <p class="field-hint">Named for the investor's reference. The agency coordinates applications; it does not issue permits.</p>
+                                    </div>
+
+                <div class="auth-field">
+                    <label for="summary" class="form-label-mia">Public summary <span class="opt">Optional</span></label>
+                    <textarea id="summary" name="summary" rows="3" maxlength="300"
+                        class="form-control-mia "
+                        placeholder="One or two sentences explaining what the permit covers."></textarea>
+                    <p class="field-hint">Keep it factual — no approval promises or guaranteed timelines.</p>
+                                    </div>
+            </div>
+        </section>
+
+        <section class="dash-block">
+            <div class="dash-block__head">
+                <h2>Pricing</h2>
+                <span class="dash-block__meta">Agency service fee</span>
+            </div>
+
+            <div class="dash-form">
+                <div class="admin-field-grid">
+                    <div class="auth-field">
+                        <label for="fee" class="form-label-mia">Fee <span class="opt">Optional</span></label>
+                        <input type="number" id="fee" name="fee" step="0.01" min="0" max="9999999999.99"
+                            class="form-control-mia "
+                            value="" placeholder="Leave blank to quote on assessment">
+                                            </div>
+
+                    <div class="auth-field">
+                        <label for="currency" class="form-label-mia">Currency <span class="req">*</span></label>
+                        <input type="text" id="currency" name="currency" maxlength="3" required
+                            class="form-control-mia "
+                            value="USD"
+                            placeholder="USD" inputmode="text" autocapitalize="characters">
+                        <p class="field-hint">Three-letter ISO code.</p>
+                                            </div>
+                </div>
+
+                <div class="auth-field">
+                    <label for="turnaround" class="form-label-mia">Indicative turnaround <span class="opt">Optional</span></label>
+                    <input type="text" id="turnaround" name="turnaround" maxlength="80"
+                        class="form-control-mia "
+                        value=""
+                        placeholder="e.g. 5–10 working days">
+                    <p class="field-hint">Publish only an estimate confirmed against the issuing authority.</p>
+                                    </div>
+
+                <p class="dash-note">
+                    The fee shown publicly is the agency's own service fee. Statutory charges are set by
+                    the issuing authority and invoiced separately. Leaving the fee blank publishes
+                    “On assessment”.
+                </p>
+            </div>
+        </section>
+    </div>
+
+    <aside class="admin-detail__aside">
+        <section class="dash-block">
+            <div class="dash-block__head">
+                <h2>Visibility</h2>
+            </div>
+
+            <div class="dash-form">
+                <div class="auth-field">
+                    <input type="hidden" name="is_active" value="0">
+                    <label class="admin-check" for="is_active">
+                        <input type="checkbox" id="is_active" name="is_active" value="1"
+                            checked>
+                        <span>
+                            <strong>Published</strong>
+                            <span class="admin-sub">Unchecked permits stay in the console only.</span>
+                        </span>
+                    </label>
+                </div>
+
+                <div class="auth-field">
+                    <label for="sort_order" class="form-label-mia">Sort order</label>
+                    <input type="number" id="sort_order" name="sort_order" min="0" max="9999"
+                        class="form-control-mia "
+                        value="10">
+                    <p class="field-hint">Lower numbers appear first.</p>
+                                    </div>
+
+                <div class="dash-form__actions">
+                    <button type="submit" class="btn btn-mia btn-gold-mia">
+                        Add permit
+                    </button>
+                    <a class="btn btn-mia btn-outline-mia" href="http://127.0.0.1:8000/admin/permits">Cancel</a>
+                </div>
+            </div>
+        </section>
+    </aside>
+</div>
+    </form>
+            </main>
+        </div>
+    </div>
+
+    <script src="http://127.0.0.1:8000/assets/vendor/bootstrap.bundle.min.js" defer></script>
+</body>
+</html>
