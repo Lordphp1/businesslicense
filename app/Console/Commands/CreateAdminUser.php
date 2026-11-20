@@ -3,16 +3,26 @@
 namespace App\Console\Commands;
 
 use App\Models\User;
-use Illuminate\Console\Attributes\Description;
-use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules\Password;
 
-#[Signature('app:create-admin-user {email? : Email address of the staff account} {--name= : Display name for a new account} {--password= : Password for a new account}')]
-#[Description('Create a staff account or grant back-office access to an existing account')]
 class CreateAdminUser extends Command
 {
+    /**
+     * The name and signature of the console command.
+     *
+     * @var string
+     */
+    protected $signature = 'app:create-admin-user {email? : Email address of the staff account} {--name= : Display name for a new account} {--password= : Password for a new account}';
+
+    /**
+     * The console command description.
+     *
+     * @var string
+     */
+    protected $description = 'Create a staff account or grant back-office access to an existing account';
+
     /**
      * Execute the console command.
      */
