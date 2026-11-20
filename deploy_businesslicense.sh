@@ -8,8 +8,9 @@ echo "=== Business License Deployment Started ==="
 
 cd "$DIR"
 
-# Pull latest code
-git pull origin main
+# Pull latest code cleanly
+git fetch origin main
+git reset --hard origin/main
 
 # Composer dependencies
 export COMPOSER_ALLOW_SUPERUSER=1
