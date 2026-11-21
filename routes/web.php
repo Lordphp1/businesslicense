@@ -79,25 +79,25 @@ Route::middleware(['auth', 'admin'])
         Route::put('/permits/{permit}', [AdminPermitController::class, 'update'])->name('permits.update');
 
         /* Sectors */
-        Route::get('/admin/sectors', [AdminSectorController::class, 'index'])->name('admin.sectors.index');
-        Route::get('/admin/sectors/create', [AdminSectorController::class, 'create'])->name('admin.sectors.create');
-        Route::post('/admin/sectors', [AdminSectorController::class, 'store'])->name('admin.sectors.store');
-        Route::get('/admin/sectors/{sector}/edit', [AdminSectorController::class, 'edit'])->name('admin.sectors.edit');
-        Route::put('/admin/sectors/{sector}', [AdminSectorController::class, 'update'])->name('admin.sectors.update');
+        Route::get('/admin/sectors', [AdminSectorController::class, 'index'])->name('sectors.index');
+        Route::get('/admin/sectors/create', [AdminSectorController::class, 'create'])->name('sectors.create');
+        Route::post('/admin/sectors', [AdminSectorController::class, 'store'])->name('sectors.store');
+        Route::get('/admin/sectors/{sector}/edit', [AdminSectorController::class, 'edit'])->name('sectors.edit');
+        Route::put('/admin/sectors/{sector}', [AdminSectorController::class, 'update'])->name('sectors.update');
 
         /* Opportunities */
-        Route::get('/admin/opportunities', [AdminOpportunityController::class, 'index'])->name('admin.opportunities.index');
-        Route::get('/admin/opportunities/create', [AdminOpportunityController::class, 'create'])->name('admin.opportunities.create');
-        Route::post('/admin/opportunities', [AdminOpportunityController::class, 'store'])->name('admin.opportunities.store');
-        Route::get('/admin/opportunities/{opp}/edit', [AdminOpportunityController::class, 'edit'])->name('admin.opportunities.edit');
-        Route::put('/admin/opportunities/{opp}', [AdminOpportunityController::class, 'update'])->name('admin.opportunities.update');
+        Route::get('/admin/opportunities', [AdminOpportunityController::class, 'index'])->name('opportunities.index');
+        Route::get('/admin/opportunities/create', [AdminOpportunityController::class, 'create'])->name('opportunities.create');
+        Route::post('/admin/opportunities', [AdminOpportunityController::class, 'store'])->name('opportunities.store');
+        Route::get('/admin/opportunities/{opp}/edit', [AdminOpportunityController::class, 'edit'])->name('opportunities.edit');
+        Route::put('/admin/opportunities/{opp}', [AdminOpportunityController::class, 'update'])->name('opportunities.update');
 
         /* News */
-        Route::get('/admin/news', [AdminNewsController::class, 'index'])->name('admin.news.index');
-        Route::get('/admin/news/create', [AdminNewsController::class, 'create'])->name('admin.news.create');
-        Route::post('/admin/news', [AdminNewsController::class, 'store'])->name('admin.news.store');
-        Route::get('/admin/news/{post}/edit', [AdminNewsController::class, 'edit'])->name('admin.news.edit');
-        Route::put('/admin/news/{post}', [AdminNewsController::class, 'update'])->name('admin.news.update');
+        Route::get('/admin/news', [AdminNewsController::class, 'index'])->name('news.index');
+        Route::get('/admin/news/create', [AdminNewsController::class, 'create'])->name('news.create');
+        Route::post('/admin/news', [AdminNewsController::class, 'store'])->name('news.store');
+        Route::get('/admin/news/{post}/edit', [AdminNewsController::class, 'edit'])->name('news.edit');
+        Route::put('/admin/news/{post}', [AdminNewsController::class, 'update'])->name('news.update');
     });
 
 /*

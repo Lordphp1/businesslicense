@@ -1,148 +1,85 @@
-<laravel-boost-guidelines>
-=== foundation rules ===
+# OpenCode Agents - Quick Reference
 
-# Laravel Boost Guidelines
+Common commands and paths for this Laravel project.
 
-## Foundational Context
+## Project Root
+`C:\localhost\businesslicense`
 
-This application is a Laravel application running on PHP 8.3. Always use the APIs that match the installed major version of each package — do not assume a version.
+## Useful Artisan Commands
+- `php artisan list` - list all commands
+- `php artisan test --filter=TestName` - run specific test
+- `php artisan route:list` - list registered routes
+- `php artisan route:clear` - clear route cache
+- `php artisan view:clear` - clear view cache
+- `php artisan cache:clear` - clear application cache
+- `php artisan config:clear` - clear configuration cache
+- `vendor/bin/pint --format agent` - format PHP code
 
-Before relying on a package's API, confirm its installed version:
-- PHP packages: run `composer show --direct` to list direct dependencies with versions, or `composer show <vendor/package>` for a single package.
-- JS packages: check `package.json` for the installed versions.
+## Key Directories
+- `app/` - Application code (controllers, models, middleware, etc.)
+- `routes/` - Route definitions (`web.php`, `api.php`, etc.)
+- `resources/views/` - Blade templates
+- `resources/css/` - CSS source files
+- `public/assets/` - Deployed assets (CSS, JS, icons)
+- `database/` - Migrations, seeders, factories
+- `tests/` - PHPUnit feature and unit tests
 
-## Skills Activation
+## CSS Workflow
+- Edit `resources/css/app.css` 
+- Run `npm run build` OR copy file: `copy resources/css/app.css public/assets/css/app.css`
+- `public/assets/css/app.css` must stay byte-identical to `resources/css/app.css`
 
-This project has domain-specific skills available in `**/skills/**`. You MUST activate the relevant skill whenever you work in that domain—don't wait until you're stuck.
+## Icon System
+- 50+ lucide SVGs in `public/assets/icons/`
+- Served via `<x-icon name="..." />` Blade component
+- Icons are plain SVG files, no npm/Vite needed
 
-## Conventions
+## Admin Access
+- Users with `is_admin` boolean flag on their `users` table
+- Protected by `admin` middleware (`EnsureUserIsAdmin`)
+- Login uses manual Laravel auth (no packages)
+- RateLimiter: 5-attempt RateLimiter on LoginRequest
+- Session regeneration after login
+- `redirect()->intended(...)` pattern
 
-- You must follow all existing code conventions used in this application. When creating or editing a file, check sibling files for the correct structure, approach, and naming.
-- Use descriptive names for variables and methods. For example, `isRegisteredForDiscounts`, not `discount()`.
-- Check for existing components to reuse before writing a new one.
+## Visual Identity
+- Navy: `#102A43`, `#0B1F33`, `#174A78`
+- Gold accent: `#C8A45D` (sparingly)
+- Gold text contrast: `--c-gold-text: #7D5C1D`
+- Fonts: Manrope (headings) + Inter (body), self-hosted
+- WCAG 2.2 AA compliant
+- Responsive: 360–1440px
+- `prefers-reduced-motion` support
+- Unique SEO title/description per page
 
-## Verification Scripts
+## Legal
+- Footer disclaimer: never claim government authority
+- No invented officials/figures/contacts
+- Private agency platform only
 
-- Do not create verification scripts or tinker when tests cover that functionality and prove they work. Unit and feature tests are more important.
+## WCAG & Accessibility
+- WCAG 2.2 AA target
+- `prefers-reduced-motion` respect
+- Console error monitoring
+- Lighthouse audits: accessibility, best practices, SEO
 
-## Application Structure & Architecture
+## Design Principles
+- Editorial, anti-"AI-slop" design
+- No fake stats or invented data
+- Authentic, verifiable content only
+- Permits and pricing managed from admin CRUD
+- Sectors/Opportunities/News: full admin CRUD
 
-- Stick to existing directory structure; don't create new base folders without approval.
-- Do not change the application's dependencies without approval.
+## Test Strategy
+- 42 PHPUnit tests, 220 assertions
+- Test both guest restrictions and admin functionality
+- Use `RefreshDatabase` trait for database isolation
+- Factories for test data setup
+- Test public-facing pages as well as admin routes
 
-## Frontend Bundling
-
-- If a frontend change doesn't show in the UI or you get a "Unable to locate file in Vite manifest" error, run `npm run build` or ask the user to run `npm run dev` or `composer run dev`.
-
-## Documentation Files
-
-- You must only create documentation files if explicitly requested by the user.
-
-=== boost rules ===
-
-# Laravel Boost
-
-## Tools
-
-- Laravel Boost is an MCP server with tools designed specifically for this application. Prefer Boost tools over manual alternatives like shell commands or file reads.
-- Use `database-query` to run read-only queries against the database instead of writing raw SQL in tinker.
-- Use `database-schema` to inspect table structure before writing migrations or models.
-- Use `get-absolute-url` to resolve the correct scheme, domain, and port for project URLs. Always use this before sharing a URL with the user.
-- Use `browser-logs` to read browser logs, errors, and exceptions. Only recent logs are useful, ignore old entries.
-
-## Searching Documentation (IMPORTANT)
-
-- Use `search-docs` before changes that depend on Laravel ecosystem APIs, behavior, configuration, or version-specific syntax. Skip it for copy-only edits and other changes where package documentation is irrelevant. Reuse sufficient results already in context instead of searching again.
-- Pass a `packages` array to scope results when you know which packages are relevant.
-- Use multiple broad, topic-based queries: `['rate limiting', 'routing rate limiting', 'routing']`. Expect the most relevant results first.
-- Do not add package names to queries because package info is already shared. Use `test resource table`, not `filament 4 test resource table`.
-
-### Search Syntax
-
-1. Use words for auto-stemmed AND logic: `rate limit` matches both "rate" AND "limit".
-2. Use `"quoted phrases"` for exact position matching: `"infinite scroll"` requires adjacent words in order.
-3. Combine words and phrases for mixed queries: `middleware "rate limit"`.
-4. Use multiple queries for OR logic: `queries=["authentication", "middleware"]`.
-
-## Project Rules
-
-- This project contains committed, area-grouped rules in `.ai/rules` when that directory exists, including path-scoped framework guidelines under `.ai/rules/boost`. Before you enter plan mode or create/edit any file, you MUST first: open @.ai/rules/index.md (it maps file globs to rule files), read every rule file whose globs cover the path(s) in scope, and run `grep -rin 'keyword' .ai/rules` to catch what a path match alone misses. Do not write code until you have read and are following every matching rule. If `.ai/rules` does not exist, continue without it.
-
-## Artisan
-
-- Run Artisan commands directly via the command line (e.g., `php artisan route:list`). Use `php artisan list` to discover available commands and `php artisan [command] --help` to check parameters.
-- Inspect routes with `php artisan route:list`. Filter with: `--method=GET`, `--name=users`, `--path=api`, `--except-vendor`, `--only-vendor`.
-- Read configuration values using dot notation: `php artisan config:show app.name`, `php artisan config:show database.default`. Or read config files directly from the `config/` directory.
-
-## Tinker
-
-- Execute PHP in app context for debugging and testing code. Do not create models without user approval, prefer tests with factories instead. Prefer existing Artisan commands over custom tinker code.
-- Always use single quotes to prevent shell expansion: `php artisan tinker --execute 'Your::code();'`
-  - Double quotes for PHP strings inside: `php artisan tinker --execute 'User::where("active", true)->count();'`
-
-=== php rules ===
-
-# PHP
-
-- Always use curly braces for control structures, even for single-line bodies.
-- Use PHP 8 constructor property promotion: `public function __construct(public GitHub $github) { }`. Do not leave empty zero-parameter `__construct()` methods unless the constructor is private.
-- Use explicit return type declarations and type hints for all method parameters: `function isAccessible(User $user, ?string $path = null): bool`
-- Use TitleCase for Enum keys: `FavoritePerson`, `BestLake`, `Monthly`.
-- Prefer PHPDoc blocks over inline comments. Only add inline comments for exceptionally complex logic.
-- Use array shape type definitions in PHPDoc blocks.
-
-=== deployments rules ===
-
-# Deployment
-
-- Laravel can be deployed using [Laravel Cloud](https://cloud.laravel.com/), which is the fastest way to deploy and scale production Laravel applications.
-- Activate the `deploying-to-cloud` skill whenever deploying to Laravel Cloud, configuring Cloud environments or resources, using the Cloud CLI, or troubleshooting Cloud deployments.
-
-=== laravel/core rules ===
-
-# Do Things the Laravel Way
-
-- Use `php artisan make:` commands to create new files (i.e. migrations, controllers, models, etc.). You can list available Artisan commands using `php artisan list` and check their parameters with `php artisan [command] --help`.
-- If you're creating a generic PHP class, use `php artisan make:class`.
-- Pass `--no-interaction` to all Artisan commands to ensure they work without user input. You should also pass the correct `--options` to ensure correct behavior.
-
-### Model Creation
-
-- When creating new models, create useful factories and seeders for them too. Ask the user if they need any other things, using `php artisan make:model --help` to check the available options.
-
-## APIs & Eloquent Resources
-
-- For APIs, default to using Eloquent API Resources and API versioning unless existing API routes do not, then you should follow existing application convention.
-
-## URL Generation
-
-- When generating links to other pages, prefer named routes and the `route()` function.
-
-## Testing
-
-- When creating models for tests, use the factories for the models. Check if the factory has custom states that can be used before manually setting up the model.
-- Faker: Use methods such as `$this->faker->word()` or `fake()->randomDigit()`. Follow existing conventions whether to use `$this->faker` or `fake()`.
-- When creating tests, make use of `php artisan make:test [options] {name}` to create a feature test, and pass `--unit` to create a unit test. Most tests should be feature tests.
-
-=== pint/core rules ===
-
-# Laravel Pint Code Formatter
-
-- If you have modified any PHP files, you must run `vendor/bin/pint --dirty --format agent` before finalizing changes to ensure your code matches the project's expected style.
-- Do not run `vendor/bin/pint --test --format agent`, simply run `vendor/bin/pint --format agent` to fix any formatting issues.
-
-=== phpunit/core rules ===
-
-# PHPUnit
-
-- This project uses PHPUnit. Create tests with `php artisan make:test --phpunit {name}`.
-- Do not include the test suite directory in `{name}`. Use `SomeFeatureTest`, not `Feature/SomeFeatureTest`.
-- Read the `testing-best-practices` skill for guidance on coverage, naming, structure, dependency isolation, and review.
-
-## Running Tests
-
-- Run the narrowest set of tests that covers the change. Pass a file path or `--filter=testName` to `php artisan test --compact`.
-- Rerun a test after each change to it.
-- Run `vendor/bin/phpunit` to call the test runner directly. It accepts the same file path and `--filter=testName` arguments.
-
-</laravel-boost-guidelines>
+## Last Verified
+- All 42 tests pass
+- Lighthouse: 100 accessibility, 100 best practices, 100 SEO on /admin, /admin/enquiries, /admin/enquiries/{id}
+- CSS in sync
+- Pint formatted
+- MySQL 9.1, DB `businesslicense`

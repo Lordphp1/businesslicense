@@ -45,8 +45,24 @@
                     <x-icon name="banknote" /> Permits &amp; pricing
                 </a>
                 <span class="admin-nav__pending">
-                    <x-icon name="file-text" /> Sectors, opportunities and news
-                    <span class="admin-nav__soon">Next milestone</span>
+                    <x-icon name="file-text" /> <span>Sectors, opportunities and news</span>
+                    @if (auth()->user()->isAdmin())
+                        <a class="admin-nav__link admin-nav__pending admin-nav__soon"
+                           href="{{ route('admin.sectors.index') }}"
+                           aria-label="Sectors management">
+                            Sectors
+                        </a>
+                        <a class="admin-nav__link admin-nav__pending admin-nav__soon"
+                           href="{{ route('admin.opportunities.index') }}"
+                           aria-label="Investment opportunities management">
+                            Opportunities
+                        </a>
+                        <a class="admin-nav__link admin-nav__pending admin-nav__soon"
+                           href="{{ route('admin.news.index') }}"
+                           aria-label="News management">
+                            News
+                        </a>
+                    @endif
                 </span>
             </nav>
 
