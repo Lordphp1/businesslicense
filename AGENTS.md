@@ -1,7 +1,5 @@
 # OpenCode Agents - Quick Reference
 
-Common commands and paths for this Laravel project.
-
 ## Project Root
 `C:\localhost\businesslicense`
 
@@ -26,7 +24,7 @@ Common commands and paths for this Laravel project.
 
 ## CSS Workflow
 - Edit `resources/css/app.css` 
-- Run `npm run build` OR copy file: `copy resources/css/app.css public/assets/css/app.css`
+- Copy file: `copy resources/css/app.css public/assets/css/app.css`
 - `public/assets/css/app.css` must stay byte-identical to `resources/css/app.css`
 
 ## Icon System
@@ -69,6 +67,7 @@ Common commands and paths for this Laravel project.
 - Authentic, verifiable content only
 - Permits and pricing managed from admin CRUD
 - Sectors/Opportunities/News: full admin CRUD
+- Admin profile: edit name, phone, country, company
 
 ## Test Strategy
 - 42 PHPUnit tests, 220 assertions
@@ -83,3 +82,5 @@ Common commands and paths for this Laravel project.
 - CSS in sync
 - Pint formatted
 - MySQL 9.1, DB `businesslicense`
+- Admin profile edit: name, phone, country, company
+- Admin nav: Dashboard, Enquiries, Permits, Sectors/Opportunities/News, Profile
