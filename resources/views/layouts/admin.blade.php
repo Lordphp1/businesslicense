@@ -64,6 +64,11 @@
                         </a>
                     @endif
                 </span>
+                <a class="admin-nav__link admin-nav__pending"
+                   href="{{ route('admin.profile.edit') }}"
+                   aria-label="Edit your profile">
+                    <x-icon name="user" /> Profile
+                </a>
             </nav>
 
             <div class="admin-side__foot">

@@ -66,6 +66,8 @@ Route::middleware(['auth', 'admin'])
     ->name('admin.')
     ->group(function () {
         Route::get('/', [AdminDashboardController::class, 'index'])->name('dashboard');
+        Route::get('/profile/edit', [AdminProfileController::class, 'edit'])->name('profile.edit');
+        Route::put('/profile', [AdminProfileController::class, 'update'])->name('profile.update');
 
         Route::get('/enquiries', [AdminEnquiryController::class, 'index'])->name('enquiries.index');
         Route::get('/enquiries/{enquiry}', [AdminEnquiryController::class, 'show'])->name('enquiries.show');

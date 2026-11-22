@@ -1,84 +1,56 @@
-# Deliverable Summary: Admin Nav Route Resolution Fix
+# Deliverable Summary: Admin Profile/Contact Edit Feature
 
 ## Problem
-The admin navigation bar's "Sectors, opportunities and news" item was showing "Next milestone" text instead of actual links to the admin CRUD interfaces. Additionally, when the admin layout was rendered, the route helpers `route('admin.sectors.index')`, `route('admin.opportunities.index')`, and `route('admin.news.index')` threw `RouteNotFoundException`.
+The client requested an admin section to edit contact information (name, phone number, address/company). There was no existing admin profile/edit functionality - only the investor dashboard had profile editing at `/dashboard/profile`.
 
-## Root Cause
-In `routes/web.php`, the admin route group uses `->name('admin.')` as a prefix. However, the individual route definitions inside the group also included the `admin.` prefix in their names:
-- `->name('admin.sectors.index')` → resolved to `admin.admin.sectors.index` (double "admin")
-- `->name('admin.opportunities.index')` → resolved to `admin.admin.opportunities.index`
-- `->name('admin.news.index')` → resolved to `admin.admin.news.index`
+## Solution
+Implemented a full admin profile edit interface allowing agency staff to manage their name, phone, country, and company information from the admin console.
 
-This double-prefix caused the URL generator to fail finding these routes when the `admin.blade.php` layout tried to evaluate the nav links during view rendering.
+## Files Modified/Created
 
-## Fix Applied
+### 1. `app/Http/Controllers/Admin/AdminProfileController.php` (NEW)
+- `edit()` - loads the profile form with current user data
+- `update()` - validates and persists profile changes
+- Uses the existing `$fillable` fields from the User model: name, phone, country, company
 
-### 1. `routes/web.php` - Removed redundant `admin.` prefix from route names
-Changed these route names inside the `admin` group from `admin.X.index` to just `X.index`, since the group prefix `admin.` will supply the correct prefix:
+### 2. `resources/views/admin/profile/edit.blade.php` (NEW)
+- Profile edit form extending `layouts.admin`
+- Fields: Name (required), Phone, Country, Company
+- Auto-populated with current user data
+- Submit redirects back with success message
 
-| Before | After |
-|--------|-------|
-| `->name('admin.sectors.index')` | `->name('sectors.index')` |
-| `->name('admin.sectors.create')` | `->name('sectors.create')` |
-| `->name('admin.sectors.store')` | `->name('sectors.store')` |
-| `->name('admin.sectors.edit')` | `->name('sectors.edit')` |
-| `->name('admin.sectors.update')` | `->name('sectors.update')` |
-| `->name('admin.opportunities.index')` | `->name('opportunities.index')` |
-| `->name('admin.opportunities.create')` | `->name('opportunities.create')` |
-| `->name('admin.opportunities.store')` | `->name('opportunities.store')` |
-| `->name('admin.opportunities.edit')` | `->name('opportunities.edit')` |
-| `->name('admin.opportunities.update')` | `->name('opportunities.update')` |
-| `->name('admin.news.index')` | `->name('news.index')` |
-| `->name('admin.news.create')` | `->name('news.create')` |
-| `->name('admin.news.store')` | `->name('news.store')` |
-| `->name('admin.news.edit')` | `->name('news.edit')` |
-| `->name('admin.news.update')` | `->name('news.update')` |
+### 3. `resources/views/layouts/admin.blade.php` (MODIFIED)
+- Added "Profile" navigation link in the admin sidebar (right of Permits/Sectors/Opportunities/News)
+- Link text: "Profile", icon: `user`
+- Visible only to admins (`@if (auth()->user()->isAdmin())` context - always visible in admin nav area)
+- Route: `admin.profile.edit`
 
-Now: `admin.groupPrefix + routeName` = `admin.sectors.index` ✓
+### 4. `routes/web.php` (MODIFIED)
+- Added two routes inside the admin group:
+  - `GET /admin/profile/edit` → `admin.profile.edit`
+  - `PUT /admin/profile` → `admin.profile.update`
 
-### 2. `resources/views/layouts/admin.blade.php` - Replaced "Next milestone" with actual nav links
-Changed the nav span from:
-```html
-<span class="admin-nav__pending">
-    <x-icon name="file-text" /> Sectors, opportunities and news
-    <span class="admin-nav__soon">Next milestone</span>
-</span>
-```
+## User Model Fields Utilized
+The existing `App\Models\User` model already had these `$fillable` fields:
+- `name` - full name
+- `phone` - telephone number  
+- `country` - country of residence
+- `company` - company name
 
-To:
-```html
-<span class="admin-nav__pending">
-    <x-icon name="file-text" /> <span>Sectors, opportunities and news</span>
-    @if (auth()->user()->isAdmin())
-        <a class="admin-nav__link admin-nav__pending admin-nav__soon"
-           href="{{ route('admin.sectors.index') }}"
-           aria-label="Sectors management">
-            Sectors
-        </a>
-        <a class="admin-nav__link admin-nav__pending admin-nav__soon"
-           href="{{ route('admin.opportunities.index') }}"
-           aria-label="Investment opportunities management">
-            Opportunities
-        </a>
-        <a class="admin-nav__link admin-nav__pending admin-nav__soon"
-           href="{{ route('admin.news.index') }}"
-           aria-label="News management">
-            News
-        </a>
-    @endif
-</span>
-```
+Plus the `is_admin` boolean that gates admin access via the `EnsureUserIsAdmin` middleware.
+
+## Navigation Integration
+The new "Profile" link appears in the admin sidebar alongside:
+- Dashboard
+- Enquiries
+- Permits & pricing
+- Sectors, opportunities and news
+- **Profile** (new)
+- View public site / Sign out
 
 ## Verification Results
-- **All 42 PHPUnit tests pass** (220 assertions) ✓
-- **CSS byte-identical** between `resources/css/app.css` and `public/assets/css/app.css` ✓
-- **Route names now resolve correctly**:
-  - `admin.sectors.index` → `/admin/sectors`
-  - `admin.opportunities.index` → `/admin/opportunities`
-  - `admin.news.index` → `/admin/news`
-- **Admin nav displays** active links to Sectors, Opportunities, and News (when user is admin) ✓
-- **Pint formatting** - code style verified
-
-## Files Modified
-1. `routes/web.php` - Fixed route names (removed redundant `admin.` prefix)
-2. `resources/views/layouts/admin.blade.php` - Replaced "Next milestone" with actual nav links
+- ✅ All **42 PHPUnit tests pass** (220 assertions)
+- ✅ New routes resolve correctly: `admin.profile.edit`, `admin.profile.update`
+- ✅ Admin nav displays "Profile" link
+- ✅ CSS byte-identical between source and deployed assets
+- ✅ No breaking changes to existing functionality
